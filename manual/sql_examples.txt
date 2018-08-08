@@ -1,0 +1,265 @@
+﻿--- Выборка для IPTV (7 дней) --- 
+(вместо Светлоград указывается населенный пункт)
+
+SELECT
+ RIGHT(ad.phone_number, 5) 'Номер тел.',
+ ad.street 'Улица',
+ ad.house_number 'Дом',
+ ad.apartment_number '№ кв.',
+ MIN(dd.max_dw_rate) 'Мин. скор.'
+FROM abon_dsl ad INNER JOIN data_dsl dd
+ ON ad.hostname=dd.hostname
+ AND ad.board=dd.board
+ AND ad.port=dd.port
+WHERE
+ dd.datetime >= DATE_ADD(CURRENT_DATE(), INTERVAL -7 DAY)
+ AND dd.max_dw_rate IS NOT NULL
+ AND ad.tv = 'no'
+ AND ad.locality LIKE '%Светлоград%'
+GROUP BY ad.phone_number
+HAVING MIN(dd.max_dw_rate) > 15000
+ORDER BY ad.street, CAST(ad.house_number AS INT);
+
+
+--- Сбитые модемы ---
+(Необходима допроверка вручную. Если сессия не успела разорваться до запуска Session_Count.py, она в Ониме еще не будет учтена.)
+
+SELECT
+ RIGHT(ad.phone_number, 5) 'Номер тел.',
+ ad.locality 'Нас. пункт',
+ ad.street 'Улица',
+ ad.house_number 'Дом',
+ apartment_number '№ кв.'
+FROM abon_dsl ad INNER JOIN data_dsl dd
+ ON ad.hostname=dd.hostname
+ AND ad.board=dd.board
+ AND ad.port=dd.port
+WHERE
+ CAST(dd.datetime AS DATE) = DATE_ADD(CURRENT_DATE(), INTERVAL -1 DAY)
+ AND ad.account_name IN (
+  SELECT account_name
+  FROM data_sessions
+  WHERE date = DATE_ADD(CURRENT_DATE(), INTERVAL -1 DAY)
+   AND count = 0
+ )
+GROUP BY ad.phone_number
+HAVING AVG(dd.max_dw_rate) IS NOT NULL
+ORDER BY ad.locality, ad.street;
+
+
+--- Абоненты со скоростью ниже ТП (сред. скор.) начиная с прошлого дня ---
+(вместо Светлоград указывается населенный пункт)
+
+SELECT
+ ad.street 'Улица',
+ ad.house_number 'Дом',
+ ad.apartment_number '№ кв.',
+ RIGHT(ad.phone_number, 5) 'Номер тел.',
+ ROUND(AVG(dd.max_dw_rate)) 'Ср. прих. скор.',
+ ad.tariff 'Тариф',
+ ROUND(AVG(dd.max_dw_rate)/ad.tariff, 2) 'Отнош. скор./тариф'
+FROM abon_dsl ad INNER JOIN data_dsl dd
+ ON ad.hostname=dd.hostname
+ AND ad.board=dd.board
+ AND ad.port=dd.port
+WHERE
+ dd.datetime >= DATE_ADD(CURRENT_DATE(), INTERVAL -1 DAY)
+ AND ad.tariff IS NOT NULL
+ AND ad.locality LIKE '%Светлог%'
+GROUP BY ad.phone_number
+HAVING ROUND(AVG(dd.max_dw_rate)/ad.tariff, 2) < 1
+ORDER BY 7, ad.street, CAST(ad.house_number AS INT), ad.apartment_number;
+
+
+--- Статистика разрывов за прошлый день(больше 30) ---
+SELECT
+ ad.locality 'Нас. пункт',
+ ad.street 'Улица',
+ ad.house_number 'Дом',
+ RIGHT(ad.phone_number, 5) 'Номер тел.',
+ ad.tariff 'Тариф',
+ ROUND(AVG(dd.max_dw_rate)) 'Ср. скорость',
+ ds.count 'Кол-во сессий'
+FROM abon_dsl ad INNER JOIN data_dsl dd
+ ON ad.hostname=dd.hostname
+ AND ad.board=dd.board
+ AND ad.port=dd.port
+ INNER JOIN data_sessions ds
+  ON ad.account_name = ds.account_name
+  AND ds.date = CAST(dd.datetime AS DATE)
+WHERE
+ ds.date = DATE_ADD(CURRENT_DATE(), INTERVAL -1 DAY)
+ AND ds.count > 30
+GROUP BY ad.phone_number
+ORDER BY ds.count DESC;
+
+
+--- Статистика разрывов за три дня (больше 30) ---
+SELECT
+ ad.locality 'Нас. пункт',
+ ad.street 'Улица',
+ ad.house_number 'Дом',
+ RIGHT(ad.phone_number, 5) 'Телефон',
+ ad.tariff 'Тариф',
+ ROUND(AVG(dd.max_dw_rate)) 'Скорость',
+ ds.count '1 день',
+ ds2.count '2 дня',
+ ds3.count '3 дня'
+FROM abon_dsl ad INNER JOIN data_dsl dd
+ ON ad.hostname=dd.hostname
+ AND ad.board=dd.board
+ AND ad.port=dd.port
+ INNER JOIN data_sessions ds
+  ON ad.account_name = ds.account_name
+  AND ds.date = CAST(dd.datetime AS DATE)
+  LEFT OUTER JOIN data_sessions ds2
+   ON ad.account_name = ds2.account_name
+   AND ds2.date = DATE_ADD(CAST(dd.datetime AS DATE), INTERVAL -1 DAY)
+   LEFT OUTER JOIN data_sessions ds3
+    ON ad.account_name = ds3.account_name
+    AND ds3.date = DATE_ADD(CAST(dd.datetime AS DATE), INTERVAL -2 DAY)
+WHERE
+ ds.date = DATE_ADD(CURRENT_DATE(), INTERVAL -1 DAY)
+ AND ds.count > 30
+GROUP BY ad.phone_number
+ORDER BY ds.count DESC, ds2.count DESC, ds3.count DESC;
+
+
+--- Статистика улицы с прошлого дня ---
+(вместо Светлоград указывается населенный пункт, вместо Уральская указывается улица)
+
+SELECT
+ ad.street 'Улица',
+ ad.house_number 'Дом',
+ ad.apartment_number '№ кв.',
+ RIGHT(ad.phone_number, 5) 'Номер тел.',
+ ad.tariff 'Тариф',
+ ROUND(AVG(dd.max_up_rate)) 'Ср. исх. скор.',
+ ROUND(AVG(dd.max_dw_rate)) 'Ср. вх. скор.'
+FROM abon_dsl ad INNER JOIN data_dsl dd
+ ON ad.hostname=dd.hostname
+ AND ad.board=dd.board
+ AND ad.port=dd.port
+WHERE
+ dd.datetime >= DATE_ADD(CURRENT_DATE(), INTERVAL -1 DAY)
+ AND ad.locality LIKE '%Светлоград%'
+ AND ad.street LIKE '%Уральская%'
+GROUP BY ad.phone_number
+HAVING
+ AVG(dd.max_up_rate) IS NOT NULL
+ AND AVG(dd.max_dw_rate) IS NOT NULL
+ORDER BY CAST(ad.house_number AS INT), ad.apartment_number;
+
+
+--- Статистика улицы за прошлый день с разрывами ---
+(вместо Светлоград указывается населенный пункт, вместо Уральская указывается улица)
+
+SELECT
+ ad.street 'Улица',
+ ad.house_number 'Дом',
+ ad.apartment_number '№ кв.',
+ RIGHT(ad.phone_number, 5) 'Номер тел.',
+ ad.tariff 'Тариф',
+ ROUND(AVG(dd.max_up_rate)) 'Ср. исх. скор.',
+ ROUND(AVG(dd.max_dw_rate)) 'Ср. вх. скор.',
+ ds.count 'Разрывы'
+FROM abon_dsl ad INNER JOIN data_dsl dd
+ ON ad.hostname=dd.hostname
+ AND ad.board=dd.board
+ AND ad.port=dd.port
+ INNER JOIN data_sessions ds
+  ON ad.account_name = ds.account_name
+  AND ds.date = CAST(dd.datetime AS DATE)
+WHERE
+ CAST(dd.datetime AS date) = DATE_ADD(CURRENT_DATE(), INTERVAL -1 DAY)
+ AND ad.locality LIKE '%Светлог%'
+ AND ad.street LIKE '%Уральск%'
+GROUP BY ad.phone_number
+HAVING
+ AVG(dd.max_up_rate) IS NOT NULL
+ AND AVG(dd.max_dw_rate) IS NOT NULL
+ORDER BY CAST(ad.house_number AS INT), ad.apartment_number;
+
+
+--- Статистика абонента по дням с разрывами ---
+(вместо 8654740169 указывается номер телефона)
+
+SELECT
+ RIGHT(ad.phone_number, 5) 'Номер тел.',
+ CAST(dd.datetime AS DATE) 'Дата',
+ ROUND(AVG(dd.max_up_rate)) 'Ср. исх. скор.',
+ ROUND(AVG(dd.max_dw_rate)) 'Ср. вх. скор.',
+ ds.count 'Разрывы'
+FROM abon_dsl ad INNER JOIN data_dsl dd
+ ON ad.hostname=dd.hostname
+ AND ad.board=dd.board
+ AND ad.port=dd.port
+ INNER JOIN data_sessions ds
+  ON ad.account_name = ds.account_name
+  AND ds.date = CAST(dd.datetime AS DATE)
+WHERE ad.phone_number = '8654740169'
+GROUP BY CAST(dd.datetime AS DATE)
+ORDER BY dd.datetime;
+
+
+--- Статистика абонента за последние 3 дня ---
+(вместо 8654740169 указывается номер телефона)
+
+SELECT
+ RIGHT(ad.phone_number, 5) 'Номер тел.',
+ dd.max_up_rate 'Макс. исх. скор.',
+ dd.max_dw_rate 'Макс. вх. скор.',
+ dd.up_rate 'Исх. скор.',
+ dd.dw_rate 'Вх. скор.',
+ ad.tariff 'Тариф',
+ dd.datetime 'Дата/Время'
+FROM abon_dsl ad INNER JOIN data_dsl dd
+ ON ad.hostname=dd.hostname
+ AND ad.board=dd.board
+ AND ad.port=dd.port
+WHERE
+ dd.datetime >= DATE_ADD(CURRENT_DATE(), INTERVAL -3 DAY)
+ AND ad.phone_number = '8654740169'
+ORDER BY dd.datetime;
+
+
+--- Статистика порта за последние 3 дня ---
+(вместо ATS4-DSL2 указывается hostname, board - плата, port - номер порта)
+
+SELECT
+ hostname,
+ board,
+ port,
+ max_up_rate 'Макс. исх. скор.',
+ max_dw_rate 'Макс. вх. скор.',
+ up_rate 'Исх. скор.',
+ dw_rate 'Вх. скор.',
+ datetime 'Дата/Время'
+FROM data_dsl
+WHERE
+ datetime >= DATE_ADD(CURRENT_DATE(), INTERVAL -3 DAY)
+ AND hostname LIKE '%ATS4-DSL2%'
+ AND board=1
+ AND port=3
+ORDER BY datetime;
+
+
+
+--- Средняя скорость по улицам (3 дня) ---
+(вместо Светлоград указывается населенный пункт)
+SELECT
+ ad.street AS 'Улица',
+ ROUND(AVG(dd.max_up_rate)) AS 'Ср. исх. ск.',
+ ROUND(AVG(dd.max_dw_rate)) AS 'Ср. вх. ск.',
+ count(DISTINCT ad.phone_number) AS 'Кол-во абон.'
+FROM abon_dsl ad INNER JOIN data_dsl dd
+ ON ad.hostname=dd.hostname
+ AND ad.board=dd.board
+ AND ad.port=dd.port
+WHERE
+ dd.datetime >= DATE_ADD(CURRENT_DATE(), INTERVAL -3 DAY)
+ AND ad.locality LIKE '%Светлоград%'
+GROUP BY ad.street
+HAVING AVG(dd.max_dw_rate) IS NOT NULL
+ORDER BY ad.street;
+
