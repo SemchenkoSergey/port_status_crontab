@@ -7,9 +7,6 @@ password_5600 = ''
 login_5616 = ''
 password_5616 = ''
 
-#Количество запусков в день
-number_of_launches = 12
-
 #Количество потоков выполнения
 threads = 5
 

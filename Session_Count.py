@@ -1,6 +1,8 @@
-# coding: utf-8
+#!/usr/bin/env python3
+# coding: utf8
 
 import re
+import os
 import time
 import MySQLdb
 import datetime
@@ -8,6 +10,8 @@ from resources import Onyma
 from resources import SQL
 from resources import Settings
 from concurrent.futures import ThreadPoolExecutor
+import warnings
+warnings.filterwarnings("ignore")
 
 
 def get_onyma_params():
@@ -125,68 +129,54 @@ def run(arguments):
 
 
 def main():
-    # Начало
-    while True:
-        print('-')
-        print('1. Запуск утром следующего дня')
-        print('2. Запуск сейчас')
-        number = input('-\n> ')
-        if number == '1' or number == '2':
-            break
-    if number == '1':
-        run_date = datetime.datetime.now().date()
-        print('Проверка сессий начнется завтра после 5 часов утра...\n')
-    else:
-        run_date = datetime.datetime.now().date() - datetime.timedelta(days=1)
-        print('Запуск проверки сессий...\n')
     
+    print('Начало работы: {}'.format(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+    count_processed = 0
+    count_insert = 0
+    count_update = 0
+    count_tv = 0
+    count_tech_data = 0
+    SQL.create_data_sessions()
+    SQL.create_abon_onyma()
+    options = {'table_name': 'abon_dsl',
+               'str1': 'account_name, tv, hostname, board, port',
+               'str2': 'account_name IS NOT NULL'}
+    account_list = SQL.get_table_data(**options)            
+    if len(account_list) == 0:
+        print('\n!!! Необходимо сформировать таблицу abon_dsl !!!\n')
+        return    
+    onyma_param_list = get_onyma_params()
+    arguments = [(account_list[x::Settings.threads_count], onyma_param_list)  for x in range(0,  Settings.threads_count)]
     while True:
-        current_date = datetime.datetime.now().date()
-        if (current_date != run_date) and (datetime.datetime.now().hour >= 5):
-            print('Начало работы: {}'.format(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
-            count_processed = 0
-            count_insert = 0
-            count_update = 0
-            count_tv = 0
-            count_tech_data = 0
-            SQL.create_data_sessions()
-            SQL.create_abon_onyma()
-            options = {'table_name': 'abon_dsl',
-                       'str1': 'account_name, tv, hostname, board, port',
-                       'str2': 'account_name IS NOT NULL'}
-            account_list = SQL.get_table_data(**options)            
-            if len(account_list) == 0:
-                print('\n!!! Необходимо сформировать таблицу abon_dsl !!!\n')
-                return    
-            onyma_param_list = get_onyma_params()
-            arguments = [(account_list[x::Settings.threads_count], onyma_param_list)  for x in range(0,  Settings.threads_count)]
-            while True:
-                try:
-                    arguments.remove(((), onyma_param_list))
-                except:
-                    break
-      
-            with ThreadPoolExecutor(max_workers=Settings.threads_count) as executor:
-                result = executor.map(run, arguments)
-           
-            for count in result:
-                count_processed += count[0]
-                count_insert += count[1]
-                count_update += count[2]
-                count_tv += count[3]
-                count_tech_data += count[4]
+        try:
+            arguments.remove(((), onyma_param_list))
+        except:
+            break
 
-            print('\nОбработано: {}'.format(count_processed))
-            print('Добавлено: {}'.format(count_insert))
-            print('Обновлено данных Онимы: {}'.format(count_update))
-            print('Обнаружено ТВ: {}'.format(count_tv))
-            print('Обновлено тех. данных: {}\n'.format(count_tech_data))
-            
-            options = {'table_name': 'data_sessions',
-                       'str1': 'date < DATE_ADD(CURRENT_DATE(), INTERVAL -{} DAY)'.format(Settings.days)}
-            SQL.delete_table(**options)
-            print('Завершение работы: {}'.format(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
-            run_date = current_date
-        else:
-            time.sleep(60*10)
-            continue
+    with ThreadPoolExecutor(max_workers=Settings.threads_count) as executor:
+        result = executor.map(run, arguments)
+   
+    for count in result:
+        count_processed += count[0]
+        count_insert += count[1]
+        count_update += count[2]
+        count_tv += count[3]
+        count_tech_data += count[4]
+
+    print('Обработано: {}'.format(count_processed))
+    print('Добавлено: {}'.format(count_insert))
+    print('Обновлено данных Онимы: {}'.format(count_update))
+    print('Обнаружено ТВ: {}'.format(count_tv))
+    print('Обновлено тех. данных: {}'.format(count_tech_data))
+    
+    options = {'table_name': 'data_sessions',
+               'str1': 'date < DATE_ADD(CURRENT_DATE(), INTERVAL -{} DAY)'.format(Settings.days)}
+    SQL.delete_table(**options)
+    print('Завершение работы: {}'.format(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+    print('---------\n')
+
+
+if __name__ == '__main__':
+    cur_dir = os.sep.join(os.path.abspath(__file__).split(os.sep)[:-1])
+    os.chdir(cur_dir)
+    main()
