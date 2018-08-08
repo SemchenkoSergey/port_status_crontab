@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup as BS
 #import Settings
 
 def get_onyma():
+    # Рассмотреть случай неверного логина/пароля !!!
     session = requests.Session()
     auth_url = 'https://10.144.196.37/onyma/login.htms'
     auth_payload = {'LOGIN': Settings.onyma_login, 'PASSWD': Settings.onyma_password, 'enter': 'Вход'}
