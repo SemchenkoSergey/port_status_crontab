@@ -114,15 +114,18 @@ def create_data_sessions(drop=False):
 def delete_table(table_name, str1):
     connect = MySQLdb.connect(host=Settings.db_host, user=Settings.db_user, password=Settings.db_password, db=Settings.db_name, charset='utf8')
     cursor = connect.cursor()
-    command = '''
-    DELETE
-    FROM {}
-    WHERE {}
-    '''.format(table_name, str1)
-    cursor.execute(command)
-    result = cursor.fetchall()
-    connect.close()
-    return result
+    try:
+        command = '''
+        DELETE
+        FROM {}
+        WHERE {}
+        '''.format(table_name, str1)
+        cursor.execute(command)
+    except:
+        pass
+    else:
+        cursor.execute('commit')
+    connect.close()        
 
 
 
