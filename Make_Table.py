@@ -1,4 +1,5 @@
-# coding: utf-8
+#!/usr/bin/env python3
+# coding: utf8
 
 import os
 import re
@@ -9,6 +10,8 @@ from resources import Onyma
 from resources import SQL
 from resources import Settings
 from concurrent.futures import ThreadPoolExecutor
+import warnings
+warnings.filterwarnings("ignore")
 
 argus_phone = {}        # 'id из аргуса': 'номер телефона'
 phones = {}             # {'телефон': [(account, onyma_id),...]}
@@ -215,20 +218,33 @@ def onyma_file(file_list):
                                    'str2': 'phone_number = {}'.format(find_phone[1])}
                         SQL.update_table(**options)
     connect.close()
+    
+def delete_files(file_list):
+    for file in file_list:
+        os.remove(file)
 
     
 def main():
-    print("Начало работы: {}\n".format(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+    # Просмотр файлов в директории in/argus/
+    argus_file_list = ['in' + os.sep + 'argus' + os.sep + x for x in os.listdir('in' + os.sep + 'argus')]
+    
+    # Просмотр файлов в директории in/onyma/
+    onyma_file_list = ['in' + os.sep + 'onyma' + os.sep + x for x in os.listdir('in' + os.sep + 'onyma')]  
+    
+    if len(argus_file_list) == 0 or len(onyma_file_list) == 0:
+        return
+    
+    print("Начало работы: {}".format(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
     SQL.create_abon_dsl(drop=True)
-    SQL.create_abon_onyma(drop=True)
+    SQL.create_abon_onyma(drop=True)    
     
     # Обработка файлов в директории in/argus/
-    file_list = ['in' + os.sep + 'argus' + os.sep + x for x in os.listdir('in' + os.sep + 'argus')]
-    argus_files(file_list)
+    argus_files(argus_file_list)
+    delete_files(argus_file_list)
     
     # Обработка файлов в директории in/onyma/
-    file_list = ['in' + os.sep + 'onyma' + os.sep + x for x in os.listdir('in' + os.sep + 'onyma')]
-    onyma_file(file_list)
+    onyma_file(onyma_file_list)
+    delete_files(onyma_file_list)
     
     # Заполнение полей bill, dmid, tmid таблицы abon_onyma
     options = {'table_name': 'abon_dsl',
@@ -238,8 +254,9 @@ def main():
     if len(account_list) == 0:
         print('\n!!! Не сформирована таблица abon_dsl !!!\n')
         return
+    
     arguments = [account_list[x::Settings.threads_count]  for x in range(0,  Settings.threads_count)]
-    print('\nПолучение данных из Онимы для таблицы abon_onyma...')
+    print('Получение данных из Онимы для таблицы abon_onyma...')
     with ThreadPoolExecutor(max_workers=Settings.threads_count) as executor:
         result = executor.map(run_define_param, arguments)
     count = 0
@@ -248,11 +265,18 @@ def main():
     print('Обработано: {}'.format(count))
     
     # Заполнение тарифов в abon_dsl
-    print('\nПолучение данных из Онимы для заполнения тарифов...')
+    print('Получение данных из Онимы для заполнения тарифов...')
     with ThreadPoolExecutor(max_workers=Settings.threads_count) as executor:
         result = executor.map(run_define_speed, arguments)
     count = 0
     for i in result:
         count += i
     print('Обработано: {}'.format(count))    
-    print("\nЗавершение работы: {}".format(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+    print("Завершение работы: {}".format(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+    print('---------\n')
+    
+    
+if __name__ == '__main__':
+    cur_dir = os.sep.join(os.path.abspath(__file__).split(os.sep)[:-1])
+    os.chdir(cur_dir)
+    main()
