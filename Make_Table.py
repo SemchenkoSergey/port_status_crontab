@@ -61,6 +61,8 @@ def run_define_param(account_list):
     connect = MySQLdb.connect(host=Settings.db_host, user=Settings.db_user, password=Settings.db_password, db=Settings.db_name, charset='utf8')
     cursor = connect.cursor()
     onyma = Onyma.get_onyma()
+    if onyma is None:
+        return count_processed
     
     for account in account_list:
         account_name = account[0]
@@ -69,6 +71,8 @@ def run_define_param(account_list):
             continue
         elif account_param == -1:
             onyma = Onyma.get_onyma()
+            if onyma is None:
+                return count_processed            
             continue
         else:
             bill, dmid, tmid = account_param
@@ -88,6 +92,9 @@ def run_define_speed(account_list):
     connect = MySQLdb.connect(host=Settings.db_host, user=Settings.db_user, password=Settings.db_password, db=Settings.db_name, charset='utf8')
     cursor = connect.cursor()
     onyma = Onyma.get_onyma()
+    if onyma is None:
+        return count_processed     
+    
     for account in account_list:
         account_name = account[0]
         speed = Onyma.find_account_speed(onyma, account_name)
@@ -104,8 +111,10 @@ def run_define_speed(account_list):
 
 
 def find_phone_account(accounts): 
-    onyma = Onyma.get_onyma()
     result = []
+    onyma = Onyma.get_onyma()
+    if onyma is None:
+        return result     
     for account in accounts:
         #print('Поиск {} в Ониме'.format(account[0]))
         argus_id = Onyma.find_argus_id(onyma, account[1])

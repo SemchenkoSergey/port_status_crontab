@@ -33,6 +33,8 @@ def run(arguments):
     connect = MySQLdb.connect(host=Settings.db_host, user=Settings.db_user, password=Settings.db_password, db=Settings.db_name, charset='utf8')
     cursor = connect.cursor()
     onyma = Onyma.get_onyma()
+    if onyma is None:
+        return (count_processed, count_insert, count_update, count_tv, count_tech_data)     
     account_list = arguments[0]
     onyma_param_list = arguments[1]
 
@@ -52,6 +54,8 @@ def run(arguments):
             onyma_param = Onyma.find_account_param(onyma, account_name)
             if onyma_param == -1:
                 onyma = Onyma.get_onyma()
+                if onyma is None:
+                    return (count_processed, count_insert, count_update, count_tv, count_tech_data)                
                 continue
             elif onyma_param is False:
                 count_processed += 1
@@ -73,6 +77,8 @@ def run(arguments):
         tv = Onyma.update_tv(onyma, bill, prev_day)
         if (data == -1) or (tv == -1):
             onyma = Onyma.get_onyma()
+            if onyma is None:
+                return (count_processed, count_insert, count_update, count_tv, count_tech_data)            
             continue
         if (tv is True) and (account_tv == 'no'):
             options = {'cursor': cursor,
@@ -85,6 +91,8 @@ def run(arguments):
             onyma_param = Onyma.find_account_param(onyma, account_name)
             if onyma_param == -1:
                 onyma = Onyma.get_onyma()
+                if onyma is None:
+                    return (count_processed, count_insert, count_update, count_tv, count_tech_data)                
                 continue
             elif onyma_param is False:
                 count_processed += 1
@@ -106,6 +114,8 @@ def run(arguments):
                 data = Onyma.count_sessions(onyma, bill,  dmid,  tmid,  prev_day)               
                 if data == -1:
                     onyma = Onyma.get_onyma()
+                    if onyma is None:
+                        return (count_processed, count_insert, count_update, count_tv, count_tech_data)                    
                     continue
                 count = data['count']
         if data['hostname'] is not None:

@@ -8,7 +8,6 @@ from bs4 import BeautifulSoup as BS
 #import Settings
 
 def get_onyma():
-    # Рассмотреть случай неверного логина/пароля !!!
     session = requests.Session()
     auth_url = 'https://10.144.196.37/onyma/login.htms'
     auth_payload = {'LOGIN': Settings.onyma_login, 'PASSWD': Settings.onyma_password, 'enter': 'Вход'}
@@ -16,7 +15,10 @@ def get_onyma():
         result = session.post(auth_url, data=auth_payload, verify=False)
     except:
         print('https://10.144.196.37/onyma/login.htms не доступен. Проверьте соединение с сетью.')
-        sys.exit()
+        return None
+    if 'AUTH_ERR' in result.text:
+        print('Не верные логин/пароль!')
+        return None
     return session
 
 
@@ -148,3 +150,5 @@ def find_argus_id(onyma, onyma_id):
     except:
         return -1
     return result
+
+get_onyma()
