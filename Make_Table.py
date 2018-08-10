@@ -114,7 +114,7 @@ def find_phone_account(accounts):
     result = []
     onyma = Onyma.get_onyma()
     if onyma is None:
-        return result     
+        return None
     for account in accounts:
         #print('Поиск {} в Ониме'.format(account[0]))
         argus_id = Onyma.find_argus_id(onyma, account[1])
@@ -185,6 +185,7 @@ def argus_files(file_list):
 def onyma_file(file_list):
     connect = MySQLdb.connect(host=Settings.db_host, user=Settings.db_user, password=Settings.db_password, db=Settings.db_name, charset='utf8')
     cursor = connect.cursor()
+    onyma = True
     
     for file in file_list:
         if file.split('.')[-1] != 'csv':
@@ -219,7 +220,13 @@ def onyma_file(file_list):
                                'str2': 'phone_number = {}'.format(phone)}                    
                     SQL.update_table(**options)
                 else:
-                    find_phones = find_phone_account(phones[phone])
+                    if onyma is True:
+                        find_phones = find_phone_account(phones[phone])
+                        if find_phones is None:
+                            onyma = False
+                            continue
+                    else:
+                        continue
                     for find_phone in find_phones:
                         options = {'cursor': cursor,
                                    'table_name': 'abon_dsl',

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # coding: utf8
 
+import os
 from resources import Settings
 
 def main():
@@ -14,4 +15,6 @@ def main():
     print('Строка для формирования отчета: {}'.format(out))
 
 if __name__ == '__main__':
+    cur_dir = os.sep.join(os.path.abspath(__file__).split(os.sep)[:-1])
+    os.chdir(cur_dir)    
     main()

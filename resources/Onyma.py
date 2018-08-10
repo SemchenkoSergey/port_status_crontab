@@ -6,6 +6,8 @@ import requests
 from resources import Settings
 from bs4 import BeautifulSoup as BS
 #import Settings
+import warnings
+warnings.filterwarnings("ignore")
 
 def get_onyma():
     session = requests.Session()
@@ -150,5 +152,3 @@ def find_argus_id(onyma, onyma_id):
     except:
         return -1
     return result
-
-get_onyma()
