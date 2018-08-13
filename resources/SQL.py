@@ -34,6 +34,19 @@ def create_data_dsl(drop=False):
         pass
     else:
         cursor.execute('commit')
+    try:
+        command = '''
+         CREATE INDEX idx_dslam ON data_dsl(hostname, board, port)
+        '''
+        cursor.execute(command)
+        command = '''
+         CREATE INDEX idx_datetime ON data_dsl(datetime)
+        '''
+        cursor.execute(command)
+    except:
+        pass
+    else:
+        cursor.execute('commit')    
     connect.close()    
 
 
